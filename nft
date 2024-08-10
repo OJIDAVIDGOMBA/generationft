@@ -1,0 +1,85 @@
+import os
+import random
+import json
+from PIL import Image
+
+# Configuration
+CONFIG = {
+    "total_images": 555,
+    "output_dir": "C:\\Users\\DELL\\Desktop\\Test\\Output",
+    "metadata_file": "metadata.json",
+    "image_width": 512,
+    "image_height": 512,
+}
+
+# Traits and layers paths
+TRAITS_PATHS = {
+    "Background": "C:\\Users\\DELL\\Desktop\\Test\\Background",
+    "Body": "C:\\Users\\DELL\\Desktop\\Test\\Body",
+    "Clothes": "C:\\Users\\DELL\\Desktop\\Test\\Clothes",
+    "Eyes": "C:\\Users\\DELL\\Desktop\\Test\\Eyes",
+    "Head": "C:\\Users\\DELL\\Desktop\\Test\\Head",
+}
+
+def get_trait_files(trait_paths):
+    """Read the trait files from directories"""
+    return {trait: os.listdir(path) for trait, path in trait_paths.items()}
+
+def create_image(token_id, traits_combination, traits_paths, output_dir, image_width, image_height):
+    """Generate a unique image"""
+    layers = []
+    for trait, file_name in traits_combination.items():
+        image_path = os.path.join(traits_paths[trait], file_name)
+        layer = Image.open(image_path).convert("RGBA")
+        layer = layer.resize((image_width, image_height))
+        layers.append(layer)
+
+    base = Image.new("RGBA", (image_width, image_height))
+    for layer in layers:
+        base = Image.alpha_composite(base, layer)
+
+    output_path = os.path.join(output_dir, f"{token_id}.png")
+    base.save(output_path)
+
+def create_metadata(token_id, traits_combination):
+    """Generate metadata for an NFT"""
+    metadata = {
+        "name": f"NFT #{token_id}",
+        "description": "An awesome NFT collection!",
+        "image": f"{token_id}.png",
+        "attributes": [{"trait_type": trait, "value": file_name.split('.')[0]} for trait, file_name in traits_combination.items()],
+    }
+    return metadata
+
+def main():
+    # Ensure output directory exists
+    os.makedirs(CONFIG["output_dir"], exist_ok=True)
+
+    # Get trait files
+    traits = get_trait_files(TRAITS_PATHS)
+
+    # Generate NFTs
+    all_metadata = []
+    for i in range(CONFIG["total_images"]):
+        # Generate a random combination of traits
+        traits_combination = {trait: random.choice(files) for trait, files in traits.items()}
+
+        # Create image
+        create_image(i + 1, traits_combination, TRAITS_PATHS, CONFIG["output_dir"], CONFIG["image_width"], CONFIG["image_height"])
+
+        # Create metadata
+        metadata = create_metadata(i + 1, traits_combination)
+        all_metadata.append(metadata)
+
+        # Save metadata to individual files
+        with open(os.path.join(CONFIG["output_dir"], f"{i + 1}.json"), 'w') as f:
+            json.dump(metadata, f, indent=4)
+
+    # Save all metadata to a single file (optional)
+    with open(os.path.join(CONFIG["output_dir"], CONFIG["metadata_file"]), 'w') as f:
+        json.dump(all_metadata, f, indent=4)
+
+    print(f"Generated {CONFIG['total_images']} NFT images and metadata files.")
+
+if __name__ == "__main__":
+    main()
